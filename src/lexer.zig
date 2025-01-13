@@ -39,7 +39,6 @@ const Lexer = struct {
     }
 
     fn readChar(self: *Lexer) void {
-        std.debug.print("[readChar] state: {}\n", .{self});
         if (self.read_position >= self.input.len) {
             self.ch = 0;
         } else {
@@ -62,12 +61,10 @@ test "lex the input" {
         Token{ .Assign = undefined }, Token{ .Plus = undefined }, Token{ .LParen = undefined }, Token{ .RParen = undefined }, Token{ .LBrace = undefined }, Token{ .RBrace = undefined },
     };
 
-    const lexer = Lexer.new(input);
+    var lexer = Lexer.new(input);
 
     for (expected_tokens) |expected_token| {
         const next_token = lexer.getNextToken();
-        std.debug.print("next_token active tag: {}\n", .{std.meta.activeTag(next_token)});
-        std.debug.print("expected_token active tag: {}\n", .{std.meta.activeTag(expected_token)});
         try std.testing.expect(std.meta.activeTag(expected_token) == std.meta.activeTag(next_token));
 
         switch (expected_token) {
