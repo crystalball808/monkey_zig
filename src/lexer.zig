@@ -52,11 +52,6 @@ const Lexer = struct {
 test "lex the input" {
     const input = "=+(){}";
 
-    // const my_insects = [_]Insect{
-    //     Insect{ .ant = Ant{ .still_alive = true } },
-    //     Insect{ .bee = Bee{ .flowers_visited = 17 } },
-    //     Insect{ .grasshopper = Grasshopper{ .distance_hopped = 32 } },
-    // };
     const expected_tokens = [_]Token{
         Token{ .Assign = undefined }, Token{ .Plus = undefined }, Token{ .LParen = undefined }, Token{ .RParen = undefined }, Token{ .LBrace = undefined }, Token{ .RBrace = undefined },
     };
@@ -70,16 +65,6 @@ test "lex the input" {
         switch (expected_token) {
             .Identifier => |expected_identifier| {
                 const identifier = next_token.Identifier;
-                // const identifier: []const u8 = switch (next_token) {
-                //     .Identifier => |identifier| identifier,
-                //     else => unreachable,
-                // };
-                // TODO: or this?
-                // const identifier = switch (token) {
-                //     inline else => |identifier| {
-                //         return identifier;
-                //     }
-                // };
 
                 try testing.expect(std.mem.eql(u8, expected_identifier, identifier));
             },
