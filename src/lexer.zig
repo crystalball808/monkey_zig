@@ -53,7 +53,12 @@ test "lex the input" {
     const input = "=+(){}";
 
     const expected_tokens = [_]Token{
-        Token{ .Assign = undefined }, Token{ .Plus = undefined }, Token{ .LParen = undefined }, Token{ .RParen = undefined }, Token{ .LBrace = undefined }, Token{ .RBrace = undefined },
+        Token{ .Assign = undefined },
+        Token{ .Plus = undefined },
+        Token{ .LParen = undefined },
+        Token{ .RParen = undefined },
+        Token{ .LBrace = undefined },
+        Token{ .RBrace = undefined },
     };
 
     var lexer = Lexer.new(input);
