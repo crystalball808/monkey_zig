@@ -19,7 +19,13 @@ const Lexer = struct {
 
     fn getNextToken(self: *Lexer) Token {
         const t = switch (self.input[self.read_position]) {
-            '=' => Token{ .Assign = undefined },
+            '=' => blk: {
+                if (self.input[self.read_position + 1] == '=') {
+                    self.readChar();
+                    break :blk Token{ .Equals = undefined };
+                }
+                break :blk Token{ .Assign = undefined };
+            },
             ';' => Token{ .Semicolon = undefined },
             '(' => Token{ .LParen = undefined },
             ')' => Token{ .RParen = undefined },
@@ -43,16 +49,9 @@ const Lexer = struct {
 };
 
 test "lex the input" {
-    const input = "=+(){}";
+    const input = "=+(){}==";
 
-    const expected_tokens = [_]Token{
-        Token{ .Assign = undefined },
-        Token{ .Plus = undefined },
-        Token{ .LParen = undefined },
-        Token{ .RParen = undefined },
-        Token{ .LBrace = undefined },
-        Token{ .RBrace = undefined },
-    };
+    const expected_tokens = [_]Token{ Token{ .Assign = undefined }, Token{ .Plus = undefined }, Token{ .LParen = undefined }, Token{ .RParen = undefined }, Token{ .LBrace = undefined }, Token{ .RBrace = undefined }, Token{ .Equals = undefined } };
 
     var lexer = Lexer.new(input);
 
