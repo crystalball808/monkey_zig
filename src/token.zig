@@ -8,7 +8,14 @@ pub const Token = union(enum) {
     // Operators
     Assign: void,
     Plus: void,
+    Minus: void,
     Equals: void,
+    NotEquals: void,
+    Bang: void,
+    Asterisk: void,
+    Slash: void,
+    GreaterThan: void,
+    LessThan: void,
 
     // Delimiters
     Comma: void,

@@ -3,6 +3,8 @@ const Token = token.Token;
 const std = @import("std");
 const testing = std.testing;
 
+const Error = std.fmt.ParseIntError;
+
 const Lexer = struct {
     input: []const u8,
     position: u32,
@@ -17,8 +19,32 @@ const Lexer = struct {
         return l;
     }
 
-    fn getNextToken(self: *Lexer) Token {
-        const t = switch (self.input[self.read_position]) {
+    fn readInt(self: *Lexer) Error!Token {
+        self.readChar();
+
+        while (self.input[self.read_position] >= '0' and self.input[self.read_position] <= '9') {
+            self.read_position += 1;
+        }
+        const integer_string = self.input[self.position..self.read_position];
+        // std.debug.print("integer_string: {any}\n", .{integer_string});
+        const integer = try std.fmt.parseInt(u32, integer_string, 10);
+        // std.debug.print("integer: {}\n", .{integer});
+        return Token{ .Int = integer };
+    }
+
+    fn skipWhitespaces(self: *Lexer) void {
+        while (self.input[self.read_position] == ' ' or self.input[self.read_position] == '\n') {
+            self.readChar();
+        }
+    }
+
+    fn getNextToken(self: *Lexer) Error!Token {
+        // std.debug.print("ch: {c}\n", .{ch1});
+        self.skipWhitespaces();
+        const ch = self.input[self.read_position];
+        // std.debug.print("ch: {c}\n", .{ch});
+        const t = switch (ch) {
+            '0'...'9' => return self.readInt(),
             '=' => blk: {
                 if (self.input[self.read_position + 1] == '=') {
                     self.readChar();
@@ -33,6 +59,18 @@ const Lexer = struct {
             '}' => Token{ .RBrace = undefined },
             ',' => Token{ .Comma = undefined },
             '+' => Token{ .Plus = undefined },
+            '-' => Token{ .Minus = undefined },
+            '!' => blk: {
+                if (self.input[self.read_position + 1] == '=') {
+                    self.readChar();
+                    break :blk Token{ .NotEquals = undefined };
+                }
+                break :blk Token{ .Bang = undefined };
+            },
+            '*' => Token{ .Asterisk = undefined },
+            '/' => Token{ .Slash = undefined },
+            '<' => Token{ .LessThan = undefined },
+            '>' => Token{ .GreaterThan = undefined },
             0 => Token{ .EOF = undefined },
             else => Token{ .Illegal = undefined },
         };
@@ -48,16 +86,20 @@ const Lexer = struct {
     }
 };
 
-test "lex the input" {
-    const input = "=+(){}==";
+test "operators" {
+    const input =
+        \\=+-!*/<>
+        \\10 == 10;
+        \\9 != 10;
+    ;
 
-    const expected_tokens = [_]Token{ Token{ .Assign = undefined }, Token{ .Plus = undefined }, Token{ .LParen = undefined }, Token{ .RParen = undefined }, Token{ .LBrace = undefined }, Token{ .RBrace = undefined }, Token{ .Equals = undefined } };
+    const expected_tokens = [_]Token{ Token{ .Assign = undefined }, Token{ .Plus = undefined }, Token{ .Minus = undefined }, Token{ .Bang = undefined }, Token{ .Asterisk = undefined }, Token{ .Slash = undefined }, Token{ .LessThan = undefined }, Token{ .GreaterThan = undefined }, Token{ .Int = 10 }, Token{ .Equals = undefined }, Token{ .Int = 10 }, Token{ .Semicolon = undefined }, Token{ .Int = 9 }, Token{ .NotEquals = undefined }, Token{ .Int = 10 }, Token{ .Semicolon = undefined } };
 
     var lexer = Lexer.new(input);
 
     for (expected_tokens) |expected_token| {
-        const next_token = lexer.getNextToken();
-        std.debug.print("{}", .{next_token});
+        const next_token = try lexer.getNextToken();
+        // std.debug.print("{}\n", .{next_token});
         try std.testing.expect(std.meta.activeTag(expected_token) == std.meta.activeTag(next_token));
 
         switch (expected_token) {
