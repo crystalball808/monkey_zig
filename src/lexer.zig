@@ -1,9 +1,26 @@
-const token = @import("token.zig");
-const Token = token.Token;
 const std = @import("std");
 const testing = std.testing;
 
+const token = @import("token.zig");
+const Token = token.Token;
+
 const Error = std.fmt.ParseIntError;
+
+const keyword_map = std.StaticStringMap(Token).initComptime(.{
+    .{ "let", Token{ .Let = undefined } },
+    .{ "fn", Token{ .Function = undefined } },
+    .{ "true", Token{ .True = undefined } },
+    .{ "false", Token{ .False = undefined } },
+    .{ "return", Token{ .Return = undefined } },
+    .{ "if", Token{ .If = undefined } },
+    .{ "else", Token{ .Else = undefined } },
+});
+fn lookupKeyword(word: []const u8) Token {
+    if (keyword_map.get(word)) |found_token| {
+        return found_token;
+    }
+    return Token{ .Identifier = word };
+}
 
 const Lexer = struct {
     input: []const u8,
@@ -26,10 +43,26 @@ const Lexer = struct {
             self.read_position += 1;
         }
         const integer_string = self.input[self.position..self.read_position];
-        // std.debug.print("integer_string: {any}\n", .{integer_string});
         const integer = try std.fmt.parseInt(u32, integer_string, 10);
-        // std.debug.print("integer: {}\n", .{integer});
         return Token{ .Int = integer };
+    }
+    fn readWord(self: *Lexer) Error![]const u8 {
+        self.readChar();
+        while (self.input[self.read_position] >= 'A' and self.input[self.read_position] <= 'z') {
+            self.read_position += 1;
+        }
+        return self.input[self.position..self.read_position];
+    }
+    fn readString(self: *Lexer) Token {
+        self.readChar();
+        self.readChar();
+
+        while (self.input[self.read_position] != '"') {
+            self.read_position += 1;
+        }
+        const string = self.input[self.position..self.read_position];
+        self.read_position += 1;
+        return Token{ .String = string };
     }
 
     fn skipWhitespaces(self: *Lexer) void {
@@ -39,12 +72,13 @@ const Lexer = struct {
     }
 
     fn getNextToken(self: *Lexer) Error!Token {
-        // std.debug.print("ch: {c}\n", .{ch1});
         self.skipWhitespaces();
         const ch = self.input[self.read_position];
-        // std.debug.print("ch: {c}\n", .{ch});
         const t = switch (ch) {
+            '"' => return self.readString(),
             '0'...'9' => return self.readInt(),
+            'A'...'Z' => return lookupKeyword(try self.readWord()),
+            'a'...'z' => return lookupKeyword(try self.readWord()),
             '=' => blk: {
                 if (self.input[self.read_position + 1] == '=') {
                     self.readChar();
@@ -57,6 +91,8 @@ const Lexer = struct {
             ')' => Token{ .RParen = undefined },
             '{' => Token{ .LBrace = undefined },
             '}' => Token{ .RBrace = undefined },
+            '[' => Token{ .LBracket = undefined },
+            ']' => Token{ .RBracket = undefined },
             ',' => Token{ .Comma = undefined },
             '+' => Token{ .Plus = undefined },
             '-' => Token{ .Minus = undefined },
@@ -89,7 +125,7 @@ const Lexer = struct {
 fn testLexer(lexer: *Lexer, expected_tokens: []const Token) !void {
     for (expected_tokens) |expected_token| {
         const next_token = try lexer.getNextToken();
-        // std.debug.print("{}\n", .{next_token});
+
         try std.testing.expect(std.meta.activeTag(expected_token) == std.meta.activeTag(next_token));
 
         switch (expected_token) {
@@ -125,7 +161,7 @@ test "operators" {
 test "basic set" {
     const input =
         \\let five = 5;
-        \\let name = \"Roman\";
+        \\let name = "Roman";
         \\let ten = 10;
         \\
         \\let add = fn(x, y) {
@@ -135,7 +171,54 @@ test "basic set" {
         \\[1, 2];
     ;
 
-    const expected_tokens = [_]Token{};
+    const expected_tokens = [_]Token{
+        Token{ .Let = undefined },
+        Token{ .Identifier = "five" },
+        Token{ .Assign = undefined },
+        Token{ .Int = 5 },
+        Token{ .Semicolon = undefined },
+        Token{ .Let = undefined },
+        Token{ .Identifier = "name" },
+        Token{ .Assign = undefined },
+        Token{ .String = "Roman" }, // String would need special handling
+        Token{ .Semicolon = undefined },
+        Token{ .Let = undefined },
+        Token{ .Identifier = "ten" },
+        Token{ .Assign = undefined },
+        Token{ .Int = 10 },
+        Token{ .Semicolon = undefined },
+        Token{ .Let = undefined },
+        Token{ .Identifier = "add" },
+        Token{ .Assign = undefined },
+        Token{ .Function = undefined },
+        Token{ .LParen = undefined },
+        Token{ .Identifier = "x" },
+        Token{ .Comma = undefined },
+        Token{ .Identifier = "y" },
+        Token{ .RParen = undefined },
+        Token{ .LBrace = undefined },
+        Token{ .Identifier = "x" },
+        Token{ .Plus = undefined },
+        Token{ .Identifier = "y" },
+        Token{ .RBrace = undefined },
+        Token{ .Semicolon = undefined },
+        Token{ .Let = undefined },
+        Token{ .Identifier = "result" },
+        Token{ .Assign = undefined },
+        Token{ .Identifier = "add" },
+        Token{ .LParen = undefined },
+        Token{ .Identifier = "five" },
+        Token{ .Comma = undefined },
+        Token{ .Identifier = "ten" },
+        Token{ .RParen = undefined },
+        Token{ .Semicolon = undefined },
+        Token{ .LBracket = undefined },
+        Token{ .Int = 1 },
+        Token{ .Comma = undefined },
+        Token{ .Int = 2 },
+        Token{ .RBracket = undefined },
+        Token{ .Semicolon = undefined },
+    };
 
     var lexer = Lexer.new(input);
 

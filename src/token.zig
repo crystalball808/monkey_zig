@@ -1,9 +1,13 @@
+const debug = @import("std").debug;
 pub const Token = union(enum) {
     Illegal: void,
     EOF: void,
     // Identifiers + literals
     Identifier: []const u8,
     Int: u32,
+    String: []const u8,
+    True: void,
+    False: void,
 
     // Operators
     Assign: void,
@@ -25,8 +29,26 @@ pub const Token = union(enum) {
     RParen: void,
     LBrace: void,
     RBrace: void,
+    LBracket: void,
+    RBracket: void,
 
     // Keywords
     Function: void,
     Let: void,
+    Return: void,
+    If: void,
+    Else: void,
 };
+pub fn prettyPrint(token: *const Token) void {
+    switch (token.*) {
+        .Identifier => |ident| {
+            debug.print("Identifier: {s}\n", .{ident});
+        },
+        .String => |string| {
+            debug.print("String literal: {s}\n", .{string});
+        },
+        else => {
+            debug.print("{}\n", .{token});
+        },
+    }
+}
