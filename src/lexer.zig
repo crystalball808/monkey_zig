@@ -86,17 +86,7 @@ const Lexer = struct {
     }
 };
 
-test "operators" {
-    const input =
-        \\=+-!*/<>
-        \\10 == 10;
-        \\9 != 10;
-    ;
-
-    const expected_tokens = [_]Token{ Token{ .Assign = undefined }, Token{ .Plus = undefined }, Token{ .Minus = undefined }, Token{ .Bang = undefined }, Token{ .Asterisk = undefined }, Token{ .Slash = undefined }, Token{ .LessThan = undefined }, Token{ .GreaterThan = undefined }, Token{ .Int = 10 }, Token{ .Equals = undefined }, Token{ .Int = 10 }, Token{ .Semicolon = undefined }, Token{ .Int = 9 }, Token{ .NotEquals = undefined }, Token{ .Int = 10 }, Token{ .Semicolon = undefined } };
-
-    var lexer = Lexer.new(input);
-
+fn testLexer(lexer: *Lexer, expected_tokens: []const Token) !void {
     for (expected_tokens) |expected_token| {
         const next_token = try lexer.getNextToken();
         // std.debug.print("{}\n", .{next_token});
@@ -116,4 +106,38 @@ test "operators" {
             else => {},
         }
     }
+}
+
+test "operators" {
+    const input =
+        \\=+-!*/<>
+        \\10 == 10;
+        \\9 != 10;
+    ;
+
+    const expected_tokens = [_]Token{ Token{ .Assign = undefined }, Token{ .Plus = undefined }, Token{ .Minus = undefined }, Token{ .Bang = undefined }, Token{ .Asterisk = undefined }, Token{ .Slash = undefined }, Token{ .LessThan = undefined }, Token{ .GreaterThan = undefined }, Token{ .Int = 10 }, Token{ .Equals = undefined }, Token{ .Int = 10 }, Token{ .Semicolon = undefined }, Token{ .Int = 9 }, Token{ .NotEquals = undefined }, Token{ .Int = 10 }, Token{ .Semicolon = undefined } };
+
+    var lexer = Lexer.new(input);
+
+    try testLexer(&lexer, &expected_tokens);
+}
+
+test "basic set" {
+    const input =
+        \\let five = 5;
+        \\let name = \"Roman\";
+        \\let ten = 10;
+        \\
+        \\let add = fn(x, y) {
+        \\  x + y
+        \\};
+        \\let result = add(five, ten);
+        \\[1, 2];
+    ;
+
+    const expected_tokens = [_]Token{};
+
+    var lexer = Lexer.new(input);
+
+    try testLexer(&lexer, &expected_tokens);
 }
