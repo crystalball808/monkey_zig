@@ -19,11 +19,11 @@ const Parser = struct {
         return Parser{lexer};
     }
 
+    // TODO: Should we init the Parser with an allocator???
     fn parseStatements(self: *Parser, allocator: std.mem.Allocator) Error!StatementList {
         const statements = StatementList.init(allocator);
 
-        var maybe_token = try self.lexer.getNextToken();
-        while (maybe_token) |token| {
+        while (try self.lexer.getNextToken()) |token| {
             switch (token) {
                 .Let => {
                     const ident = blk: {
@@ -53,7 +53,6 @@ const Parser = struct {
                 },
                 else => {},
             }
-            maybe_token = try self.lexer.getNextToken();
         }
 
         return statements;
