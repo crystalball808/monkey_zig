@@ -4,7 +4,7 @@ const testing = std.testing;
 const token = @import("token.zig");
 const Token = token.Token;
 
-const Error = std.fmt.ParseIntError;
+pub const Error = std.fmt.ParseIntError;
 
 const keyword_map = std.StaticStringMap(Token).initComptime(.{
     .{ "let", Token{ .Let = undefined } },
@@ -71,8 +71,12 @@ const Lexer = struct {
         }
     }
 
-    fn getNextToken(self: *Lexer) Error!Token {
+    pub fn getNextToken(self: *Lexer) Error!?Token {
         self.skipWhitespaces();
+        if (self.read_position >= self.input.len()) {
+            return null;
+        }
+
         const ch = self.input[self.read_position];
         const t = switch (ch) {
             '"' => return self.readString(),
@@ -180,7 +184,7 @@ test "basic set" {
         Token{ .Let = undefined },
         Token{ .Identifier = "name" },
         Token{ .Assign = undefined },
-        Token{ .String = "Roman" }, // String would need special handling
+        Token{ .String = "Roman" },
         Token{ .Semicolon = undefined },
         Token{ .Let = undefined },
         Token{ .Identifier = "ten" },

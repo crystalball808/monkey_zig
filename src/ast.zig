@@ -1,4 +1,4 @@
-const Expression = union(enum) {
+pub const Expression = union(enum) {
     const InfixChildren = struct { left: *Expression, right: *Expression };
     const IfChildren = struct { condition: *Expression, then: *Expression, alternative: ?*Expression };
 
@@ -28,4 +28,4 @@ const Expression = union(enum) {
     Call: struct { func: *Expression, args: []const Expression },
 };
 
-const Statement = union(enum) { Expression: Expression, Return: Expression, Let: struct { name: []const u8, expr: *Expression } };
+pub const Statement = union(enum) { Expression: Expression, Return: Expression, Let: struct { name: []const u8, expr: *Expression } };
