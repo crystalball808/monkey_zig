@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const expect = std.testing.expect;
 
 const ast = @import("ast.zig");
 const Statement = ast.Statement;
@@ -16,10 +17,10 @@ const Error = error{UnfinishedStatement} || LexerError || Allocator.Error;
 const ParseState = enum { start, infix, index };
 const Parser = struct {
     lexer: Lexer,
-    allocator: Allocator,
+    arena: Allocator,
 
-    fn init(lexer: Lexer, allocator: Allocator) Parser {
-        return Parser{ .lexer = lexer, .allocator = allocator };
+    fn init(lexer: Lexer, arena: Allocator) Parser {
+        return Parser{ .lexer = lexer, .arena = arena };
     }
 
     fn parseSingleExpression(self: *Parser) Expression {}
@@ -29,7 +30,7 @@ const Parser = struct {
 
     // TODO: Should we init the Parser with an allocator???
     fn parseStatements(self: *Parser) Error![]Statement {
-        var statements = StatementList.init(self.allocator);
+        var statements = StatementList.init(self.arena);
 
         while (try self.lexer.getNextToken()) |token| {
             switch (token) {
@@ -66,8 +67,6 @@ const Parser = struct {
         return statements.items;
     }
 };
-
-const expect = std.testing.expect;
 
 fn eqlExpressions(a: *const Expression, b: *const Expression) bool {
     expect(std.meta.activeTag(a) == std.meta.activeTag(b));
