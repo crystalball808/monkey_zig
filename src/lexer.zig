@@ -18,7 +18,7 @@ fn lookupKeyword(word: []const u8) Token {
     return keyword_map.get(word) orelse Token{ .Identifier = word };
 }
 
-const Lexer = struct {
+pub const Lexer = struct {
     input: []const u8,
     position: u32,
     read_position: u32,
@@ -44,7 +44,7 @@ const Lexer = struct {
     }
     fn readWord(self: *Lexer) Error![]const u8 {
         self.readChar();
-        while (self.input[self.read_position] >= 'A' and self.input[self.read_position] <= 'z') {
+        while (self.read_position < self.input.len and self.input[self.read_position] >= 'A' and self.input[self.read_position] <= 'z') {
             self.read_position += 1;
         }
         return self.input[self.position..self.read_position];
@@ -67,7 +67,12 @@ const Lexer = struct {
         }
     }
 
-    pub fn getNextToken(self: *Lexer) Error!?Token {
+    pub fn peek(self: *Lexer) Error!?Token {
+        var copy = self.*;
+        return copy.next();
+    }
+
+    pub fn next(self: *Lexer) Error!?Token {
         self.skipWhitespaces();
         if (self.read_position >= self.input.len) {
             return null;
@@ -80,7 +85,7 @@ const Lexer = struct {
             'A'...'Z' => return lookupKeyword(try self.readWord()),
             'a'...'z' => return lookupKeyword(try self.readWord()),
             '=' => blk: {
-                if (self.input[self.read_position + 1] == '=') {
+                if (self.read_position + 1 < self.input.len and self.input[self.read_position + 1] == '=') {
                     self.readChar();
                     break :blk Token{ .Equals = undefined };
                 }
@@ -124,7 +129,7 @@ const Lexer = struct {
 
 fn testLexer(lexer: *Lexer, expected_tokens: []const Token) !void {
     for (expected_tokens) |expected_token| {
-        const next_token = (try lexer.getNextToken()).?;
+        const next_token = (try lexer.next()).?;
 
         try std.testing.expect(std.meta.activeTag(expected_token) == std.meta.activeTag(next_token));
 
@@ -142,7 +147,17 @@ fn testLexer(lexer: *Lexer, expected_tokens: []const Token) !void {
             else => {},
         }
     }
-    try testing.expect(try lexer.getNextToken() == null);
+    try testing.expect(try lexer.next() == null);
+}
+
+test "peek" {
+    var lexer = Lexer.new("=");
+    if (try lexer.peek()) |tok| {
+        try testing.expect(tok == .Assign);
+    } else unreachable;
+    if (try lexer.next()) |tok| {
+        try testing.expect(tok == .Assign);
+    } else unreachable;
 }
 
 test "operators" {

@@ -4,6 +4,7 @@ pub const Expression = union(enum) {
 
     IntLiteral: i32,
     Boolean: bool,
+    StringLiteral: []const u8,
     Identifier: []const u8,
 
     // prefix operator
@@ -28,4 +29,4 @@ pub const Expression = union(enum) {
     Call: struct { func: *Expression, args: []const Expression },
 };
 
-pub const Statement = union(enum) { Expression: Expression, Return: Expression, Let: struct { name: []const u8, expr: *Expression } };
+pub const Statement = union(enum) { Expression: Expression, Return: Expression, Let: struct { name: []const u8, expr: Expression } };

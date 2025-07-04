@@ -11,22 +11,25 @@ const Token = @import("token.zig").Token;
 
 const StatementList = std.ArrayList(Statement);
 
-const Error = error{UnfinishedStatement} || LexerError;
+const Error = error{UnfinishedStatement} || LexerError || Allocator.Error;
 
+const ParseState = enum { start, infix, index };
 const Parser = struct {
     lexer: Lexer,
     allocator: Allocator,
 
     fn init(lexer: Lexer, allocator: Allocator) Parser {
-        return Parser{ lexer, allocator };
+        return Parser{ .lexer = lexer, .allocator = allocator };
     }
 
-    /// Returns a pointer to a heap-allocated Expression
-    fn parseExpression(self: *Parser) *Expression {}
+    fn parseSingleExpression(self: *Parser) Expression {}
+    fn parseExpression(self: *Parser) Expression {
+        var expr = self.parseSingleExpression();
+    }
 
     // TODO: Should we init the Parser with an allocator???
     fn parseStatements(self: *Parser) Error![]Statement {
-        const statements = StatementList.init(self.allocator);
+        var statements = StatementList.init(self.allocator);
 
         while (try self.lexer.getNextToken()) |token| {
             switch (token) {
@@ -49,7 +52,7 @@ const Parser = struct {
                     const expr = self.parseExpression();
 
                     const statement = Statement{ .Let = .{ .expr = expr, .name = ident } };
-                    statements.append(statement);
+                    try statements.append(statement);
                 },
                 .Return => {},
                 // Encountered the end of block
@@ -66,22 +69,28 @@ const Parser = struct {
 
 const expect = std.testing.expect;
 
-fn eqlExpressions(a: *const Expression, b: *const Expression) bool {}
+fn eqlExpressions(a: *const Expression, b: *const Expression) bool {
+    expect(std.meta.activeTag(a) == std.meta.activeTag(b));
+    switch (a) {
+        Expression.IntLiteral => |number| return number == b.IntLiteral,
+        Expression.Boolean => |value| return value == b.Boolean,
+    }
+}
 fn testParser(statements: []const Statement, expected_statements: []const Statement) !void {
     try expect(statements.len == expected_statements.len);
 
     for (expected_statements, statements) |expected_statement, statement| {
-        expect(std.meta.activeTag(expected_statement) == std.meta.activeTag(statement));
+        try expect(std.meta.activeTag(expected_statement) == std.meta.activeTag(statement));
 
         switch (expected_statement) {
             .Let => |expected_let_statement| {
                 const let_statement = statement.Let;
 
                 // compare identifier
-                expect(std.mem.eql(u8, expected_let_statement.name, let_statement.name));
+                try expect(std.mem.eql(u8, expected_let_statement.name, let_statement.name));
 
                 // compare expression
-                expect(eqlExpressions(expected_let_statement.expr, let_statement.expr));
+                try expect(eqlExpressions(&expected_let_statement.expr, &let_statement.expr));
             },
             // TODO: Cover all statements
             else => unreachable,
@@ -110,11 +119,11 @@ fn testParser(statements: []const Statement, expected_statements: []const Statem
 }
 
 test "let statement" {
-    const gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer gpa.deinit();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
 
     const gpa_allocator = gpa.allocator();
-    const arena = std.heap.ArenaAllocator.init(gpa_allocator);
+    var arena = std.heap.ArenaAllocator.init(gpa_allocator);
     defer arena.deinit();
 
     const allocator = arena.allocator();
@@ -124,8 +133,11 @@ test "let statement" {
         \\let y = 10;
         \\let foobar = "bazquaz";
     ;
-    const lexer = Lexer.new();
-    const parser = Parser.init(lexer, allocator);
+    const lexer = Lexer.new(input);
+    var parser = Parser.init(lexer, allocator);
 
     const statements = try parser.parseStatements();
+    const expected_statements = [_]Statement{ Statement{ .Let = .{ .name = "x", .expr = Expression{ .IntLiteral = 5 } } }, Statement{ .Let = .{ .name = "y", .expr = Expression{ .IntLiteral = 10 } } }, Statement{ .Let = .{ .name = "foobar", .expr = Expression{ .StringLiteral = "bazquaz" } } } };
+
+    try testParser(statements, &expected_statements);
 }
