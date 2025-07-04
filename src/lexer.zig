@@ -67,6 +67,8 @@ pub const Lexer = struct {
         }
     }
 
+    // TODO: Not sure if it is performant
+    // Maybe should cache the peek result to be reused in `next()`
     pub fn peek(self: *Lexer) Error!?Token {
         var copy = self.*;
         return copy.next();
