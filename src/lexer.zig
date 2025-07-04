@@ -1,10 +1,9 @@
 const std = @import("std");
 const testing = std.testing;
+pub const Error = std.fmt.ParseIntError;
 
 const token = @import("token.zig");
 const Token = token.Token;
-
-pub const Error = std.fmt.ParseIntError;
 
 const keyword_map = std.StaticStringMap(Token).initComptime(.{
     .{ "let", Token{ .Let = undefined } },
@@ -16,10 +15,7 @@ const keyword_map = std.StaticStringMap(Token).initComptime(.{
     .{ "else", Token{ .Else = undefined } },
 });
 fn lookupKeyword(word: []const u8) Token {
-    if (keyword_map.get(word)) |found_token| {
-        return found_token;
-    }
-    return Token{ .Identifier = word };
+    return keyword_map.get(word) orelse Token{ .Identifier = word };
 }
 
 const Lexer = struct {
