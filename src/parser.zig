@@ -64,6 +64,51 @@ const Parser = struct {
     }
 };
 
+const expect = std.testing.expect;
+
+fn eqlExpressions(a: *const Expression, b: *const Expression) bool {}
+fn testParser(statements: []const Statement, expected_statements: []const Statement) !void {
+    try expect(statements.len == expected_statements.len);
+
+    for (expected_statements, statements) |expected_statement, statement| {
+        expect(std.meta.activeTag(expected_statement) == std.meta.activeTag(statement));
+
+        switch (expected_statement) {
+            .Let => |expected_let_statement| {
+                const let_statement = statement.Let;
+
+                // compare identifier
+                expect(std.mem.eql(u8, expected_let_statement.name, let_statement.name));
+
+                // compare expression
+                expect(eqlExpressions(expected_let_statement.expr, let_statement.expr));
+            },
+            // TODO: Cover all statements
+            else => unreachable,
+        }
+    }
+
+    // for (expected_statements) |expected_token| {
+    //     const next_token = (try lexer.getNextToken()).?;
+    //
+    //     try std.testing.expect(std.meta.activeTag(expected_token) == std.meta.activeTag(next_token));
+    //
+    //     switch (expected_token) {
+    //         .Identifier => |expected_identifier| {
+    //             const identifier = next_token.Identifier;
+    //
+    //             try testing.expect(std.mem.eql(u8, expected_identifier, identifier));
+    //         },
+    //         .Int => |expected_number| {
+    //             const number = next_token.Int;
+    //
+    //             try testing.expectEqual(expected_number, number);
+    //         },
+    //         else => {},
+    //     }
+    // }
+}
+
 test "let statement" {
     const gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer gpa.deinit();
