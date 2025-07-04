@@ -27,7 +27,7 @@ const Lexer = struct {
     position: u32,
     read_position: u32,
 
-    fn new(input: []const u8) Lexer {
+    pub fn new(input: []const u8) Lexer {
         const l = Lexer{
             .input = input,
             .position = 0,
@@ -66,21 +66,21 @@ const Lexer = struct {
     }
 
     fn skipWhitespaces(self: *Lexer) void {
-        while (self.input[self.read_position] == ' ' or self.input[self.read_position] == '\n') {
+        while (self.read_position < self.input.len and (self.input[self.read_position] == ' ' or self.input[self.read_position] == '\n')) {
             self.readChar();
         }
     }
 
     pub fn getNextToken(self: *Lexer) Error!?Token {
         self.skipWhitespaces();
-        if (self.read_position >= self.input.len()) {
+        if (self.read_position >= self.input.len) {
             return null;
         }
 
         const ch = self.input[self.read_position];
         const t = switch (ch) {
             '"' => return self.readString(),
-            '0'...'9' => return self.readInt(),
+            '0'...'9' => return try self.readInt(),
             'A'...'Z' => return lookupKeyword(try self.readWord()),
             'a'...'z' => return lookupKeyword(try self.readWord()),
             '=' => blk: {
@@ -128,7 +128,7 @@ const Lexer = struct {
 
 fn testLexer(lexer: *Lexer, expected_tokens: []const Token) !void {
     for (expected_tokens) |expected_token| {
-        const next_token = try lexer.getNextToken();
+        const next_token = (try lexer.getNextToken()).?;
 
         try std.testing.expect(std.meta.activeTag(expected_token) == std.meta.activeTag(next_token));
 
@@ -146,6 +146,7 @@ fn testLexer(lexer: *Lexer, expected_tokens: []const Token) !void {
             else => {},
         }
     }
+    try testing.expect(try lexer.getNextToken() == null);
 }
 
 test "operators" {

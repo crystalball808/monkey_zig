@@ -1,4 +1,5 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 
 const ast = @import("ast.zig");
 const Statement = ast.Statement;
@@ -14,14 +15,18 @@ const Error = error{UnfinishedStatement} || LexerError;
 
 const Parser = struct {
     lexer: Lexer,
+    allocator: Allocator,
 
-    fn new(lexer: Lexer) Parser {
-        return Parser{lexer};
+    fn init(lexer: Lexer, allocator: Allocator) Parser {
+        return Parser{ lexer, allocator };
     }
 
+    /// Returns a pointer to a heap-allocated Expression
+    fn parseExpression(self: *Parser) *Expression {}
+
     // TODO: Should we init the Parser with an allocator???
-    fn parseStatements(self: *Parser, allocator: std.mem.Allocator) Error!StatementList {
-        const statements = StatementList.init(allocator);
+    fn parseStatements(self: *Parser) Error![]Statement {
+        const statements = StatementList.init(self.allocator);
 
         while (try self.lexer.getNextToken()) |token| {
             switch (token) {
@@ -55,6 +60,27 @@ const Parser = struct {
             }
         }
 
-        return statements;
+        return statements.items;
     }
 };
+
+test "let statement" {
+    const gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer gpa.deinit();
+
+    const gpa_allocator = gpa.allocator();
+    const arena = std.heap.ArenaAllocator.init(gpa_allocator);
+    defer arena.deinit();
+
+    const allocator = arena.allocator();
+
+    const input =
+        \\let x = 5;
+        \\let y = 10;
+        \\let foobar = "bazquaz";
+    ;
+    const lexer = Lexer.new();
+    const parser = Parser.init(lexer, allocator);
+
+    const statements = try parser.parseStatements();
+}
