@@ -4,7 +4,7 @@ pub const Token = union(enum) {
     EOF: void,
     // Identifiers + literals
     Identifier: []const u8,
-    Int: u32,
+    Int: i32,
     String: []const u8,
     True: void,
     False: void,

@@ -39,7 +39,7 @@ pub const Lexer = struct {
             self.read_position += 1;
         }
         const integer_string = self.input[self.position..self.read_position];
-        const integer = try std.fmt.parseInt(u32, integer_string, 10);
+        const integer = try std.fmt.parseInt(i32, integer_string, 10);
         return Token{ .Int = integer };
     }
     fn readWord(self: *Lexer) Error![]const u8 {
