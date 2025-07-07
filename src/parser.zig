@@ -25,7 +25,7 @@ const Parser = struct {
         return Parser{ .lexer = lexer, .arena = arena };
     }
 
-    fn parseSingleExpression(self: *Parser) !Expression {
+    fn parseSingleExpression(self: *Parser) Error!Expression {
         switch (try self.lexer.next() orelse return Error.NoTokenToParse) {
             Token.Int => |integer| return Expression{ .IntLiteral = integer },
             Token.True => return Expression{ .Boolean = true },
@@ -35,7 +35,7 @@ const Parser = struct {
             else => unreachable,
         }
     }
-    fn parseExpression(self: *Parser) !Expression {
+    fn parseExpression(self: *Parser) Error!Expression {
         const expr = self.parseSingleExpression();
 
         blk: while (try self.lexer.peek()) |peeked_token| {
@@ -88,7 +88,20 @@ const Parser = struct {
                         }
                     }
                 },
-                .Return => {},
+                .Return => {
+                    _ = try self.lexer.next();
+                    const expr = try self.parseExpression();
+                    const statement = Statement{ .Return = expr };
+                    try statements.append(statement);
+                    if (try self.lexer.next()) |tok| {
+                        switch (tok) {
+                            Token.Semicolon => {},
+                            else => return Error.ExpectedSemicolon,
+                        }
+                    } else {
+                        return Error.ExpectedSemicolon;
+                    }
+                },
                 // Encountered the end of block
                 .RBrace => {
                     break;
@@ -151,29 +164,13 @@ fn testParser(statements: []const Statement, expected_statements: []const Statem
                 try expect(eqlExpressions(&expected_expression, &expression));
             },
             // TODO: Cover all statements
-            else => unreachable,
+            .Return => |expected_expression| {
+                const expression = statement.Return;
+
+                try expect(eqlExpressions(&expected_expression, &expression));
+            },
         }
     }
-
-    // for (expected_statements) |expected_token| {
-    //     const next_token = (try lexer.getNextToken()).?;
-    //
-    //     try std.testing.expect(std.meta.activeTag(expected_token) == std.meta.activeTag(next_token));
-    //
-    //     switch (expected_token) {
-    //         .Identifier => |expected_identifier| {
-    //             const identifier = next_token.Identifier;
-    //
-    //             try testing.expect(std.mem.eql(u8, expected_identifier, identifier));
-    //         },
-    //         .Int => |expected_number| {
-    //             const number = next_token.Int;
-    //
-    //             try testing.expectEqual(expected_number, number);
-    //         },
-    //         else => {},
-    //     }
-    // }
 }
 
 test "let statement" {
@@ -195,7 +192,7 @@ test "let statement" {
 
     try testParser(statements, &expected_statements);
 }
-test "expression_statement" {
+test "expression statement" {
     var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_allocator.deinit();
 
@@ -209,11 +206,26 @@ test "expression_statement" {
     var parser = Parser.init(lexer, arena);
 
     const statements = try parser.parseStatements();
-    // const expected_ast = Program::new(vec![
-    //     Statement::Expression(Identifier("foobar")),
-    //     Statement::Expression(IntLiteral(5)),
-    // ]);
     const expected_statements = [_]Statement{ Statement{ .Expression = Expression{ .Identifier = "foobar" } }, Statement{ .Expression = Expression{ .IntLiteral = 5 } } };
+
+    try testParser(statements, &expected_statements);
+}
+test "return statement" {
+    var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_allocator.deinit();
+
+    const arena = arena_allocator.allocator();
+    const input =
+        \\return 5;
+        \\return 993322;
+        \\return foobar;
+    ;
+
+    const lexer = Lexer.new(input);
+    var parser = Parser.init(lexer, arena);
+
+    const statements = try parser.parseStatements();
+    const expected_statements = [_]Statement{ Statement{ .Return = Expression{ .IntLiteral = 5 } }, Statement{ .Return = Expression{ .IntLiteral = 993322 } }, Statement{ .Return = Expression{ .Identifier = "foobar" } } };
 
     try testParser(statements, &expected_statements);
 }
