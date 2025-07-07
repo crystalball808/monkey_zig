@@ -1,4 +1,5 @@
 const debug = @import("std").debug;
+
 pub const Token = union(enum) {
     Illegal: void,
     EOF: void,

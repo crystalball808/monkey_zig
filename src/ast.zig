@@ -7,7 +7,7 @@ pub const Expression = union(enum) {
     StringLiteral: []const u8,
     Identifier: []const u8,
 
-    // prefix operator
+    //  prefix operator
     Not: *Expression, // index of another expression
     Negative: *Expression, // index of another expression
 

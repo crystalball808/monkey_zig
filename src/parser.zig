@@ -1,19 +1,20 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const expect = std.testing.expect;
+const print = std.debug.print;
 
 const ast = @import("ast.zig");
 const Statement = ast.Statement;
 const Expression = ast.Expression;
-const ExpressionTag = ast.ExpressionTag;
 const lexer_mod = @import("lexer.zig");
 const Lexer = lexer_mod.Lexer;
 const LexerError = lexer_mod.Error;
-const Token = @import("token.zig").Token;
+const token_mod = @import("token.zig");
+const Token = token_mod.Token;
 
 const StatementList = std.ArrayList(Statement);
 
-const Error = error{ UnfinishedStatement, NoTokenToParse } || LexerError || Allocator.Error;
+const Error = error{ UnfinishedStatement, NoTokenToParse, ExpectedSemicolon } || LexerError || Allocator.Error;
 
 const ParseState = enum { start, infix, index };
 const Parser = struct {
@@ -50,13 +51,13 @@ const Parser = struct {
         return expr;
     }
 
-    // TODO: Should we init the Parser with an allocator???
     fn parseStatements(self: *Parser) Error![]Statement {
         var statements = StatementList.init(self.arena);
 
-        while (try self.lexer.next()) |token| {
+        while (try self.lexer.peek()) |token| {
             switch (token) {
                 .Let => {
+                    _ = try self.lexer.next();
                     const ident = blk: {
                         const name = try self.lexer.next() orelse return Error.UnfinishedStatement;
                         switch (name) {
@@ -76,13 +77,36 @@ const Parser = struct {
 
                     const statement = Statement{ .Let = .{ .expr = expr, .name = ident } };
                     try statements.append(statement);
+
+                    if (try self.lexer.peek()) |peeked_token| {
+                        switch (peeked_token) {
+                            Token.Semicolon => {
+                                _ = try self.lexer.next();
+                            },
+                            Token.RBrace => {},
+                            else => return Error.ExpectedSemicolon,
+                        }
+                    }
                 },
                 .Return => {},
                 // Encountered the end of block
                 .RBrace => {
                     break;
                 },
-                else => {},
+                else => {
+                    const expr = try self.parseExpression();
+                    try statements.append(Statement{ .Expression = expr });
+
+                    if (try self.lexer.peek()) |peeked_token| {
+                        switch (peeked_token) {
+                            Token.Semicolon => {
+                                _ = try self.lexer.next();
+                            },
+                            Token.RBrace => {},
+                            else => return Error.ExpectedSemicolon,
+                        }
+                    }
+                },
             }
         }
 
@@ -103,7 +127,10 @@ fn eqlExpressions(a: *const Expression, b: *const Expression) bool {
     }
 }
 fn testParser(statements: []const Statement, expected_statements: []const Statement) !void {
-    try expect(statements.len == expected_statements.len);
+    expect(statements.len == expected_statements.len) catch |err| {
+        print("expected length: {}\ngot: {}\n", .{ expected_statements.len, statements.len });
+        return err;
+    };
 
     for (expected_statements, statements) |expected_statement, statement| {
         try expect(std.meta.activeTag(expected_statement) == std.meta.activeTag(statement));
@@ -117,6 +144,11 @@ fn testParser(statements: []const Statement, expected_statements: []const Statem
 
                 // compare expression
                 try expect(eqlExpressions(&expected_let_statement.expr, &let_statement.expr));
+            },
+            .Expression => |expected_expression| {
+                const expression = statement.Expression;
+
+                try expect(eqlExpressions(&expected_expression, &expression));
             },
             // TODO: Cover all statements
             else => unreachable,
@@ -160,6 +192,28 @@ test "let statement" {
 
     const statements = try parser.parseStatements();
     const expected_statements = [_]Statement{ Statement{ .Let = .{ .name = "x", .expr = Expression{ .IntLiteral = 5 } } }, Statement{ .Let = .{ .name = "y", .expr = Expression{ .IntLiteral = 10 } } }, Statement{ .Let = .{ .name = "foobar", .expr = Expression{ .StringLiteral = "bazquaz" } } } };
+
+    try testParser(statements, &expected_statements);
+}
+test "expression_statement" {
+    var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_allocator.deinit();
+
+    const arena = arena_allocator.allocator();
+    const input =
+        \\foobar;
+        \\5;
+    ;
+
+    const lexer = Lexer.new(input);
+    var parser = Parser.init(lexer, arena);
+
+    const statements = try parser.parseStatements();
+    // const expected_ast = Program::new(vec![
+    //     Statement::Expression(Identifier("foobar")),
+    //     Statement::Expression(IntLiteral(5)),
+    // ]);
+    const expected_statements = [_]Statement{ Statement{ .Expression = Expression{ .Identifier = "foobar" } }, Statement{ .Expression = Expression{ .IntLiteral = 5 } } };
 
     try testParser(statements, &expected_statements);
 }

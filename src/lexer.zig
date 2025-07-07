@@ -42,7 +42,7 @@ pub const Lexer = struct {
         const integer = try std.fmt.parseInt(i32, integer_string, 10);
         return Token{ .Int = integer };
     }
-    fn readWord(self: *Lexer) Error![]const u8 {
+    fn readWord(self: *Lexer) []const u8 {
         self.readChar();
         while (self.read_position < self.input.len and self.input[self.read_position] >= 'A' and self.input[self.read_position] <= 'z') {
             self.read_position += 1;
@@ -84,8 +84,8 @@ pub const Lexer = struct {
         const t = switch (ch) {
             '"' => return self.readString(),
             '0'...'9' => return try self.readInt(),
-            'A'...'Z' => return lookupKeyword(try self.readWord()),
-            'a'...'z' => return lookupKeyword(try self.readWord()),
+            'A'...'Z' => return lookupKeyword(self.readWord()),
+            'a'...'z' => return lookupKeyword(self.readWord()),
             '=' => blk: {
                 if (self.read_position + 1 < self.input.len and self.input[self.read_position + 1] == '=') {
                     self.readChar();
