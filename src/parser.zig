@@ -36,12 +36,22 @@ const Parser = struct {
         }
     }
     fn parseExpression(self: *Parser) Error!Expression {
-        const expr = self.parseSingleExpression();
+        var expr = try self.parseSingleExpression();
 
         blk: while (try self.lexer.peek()) |peeked_token| {
             switch (peeked_token) {
                 // infix expression
-                .Plus, .Minus, .Asterisk, .Slash => unreachable,
+                .Plus,
+                .Minus,
+                .Asterisk,
+                .Slash,
+                .Equals,
+                .NotEquals,
+                .LessThan,
+                .GreaterThan,
+                => {
+                    expr = try self.infixParse(expr, false);
+                },
                 // index expression
                 .LBracket => unreachable,
                 else => break :blk,
@@ -49,6 +59,38 @@ const Parser = struct {
         }
 
         return expr;
+    }
+    fn infixParse(self: *Parser, left_expr: Expression, boosted: bool) Error!Expression {
+        _ = boosted;
+        const operation_token = try self.lexer.next() orelse unreachable;
+        switch (operation_token) {
+            .Plus, .Minus, .Asterisk, .Slash, .Equals, .NotEquals, .LessThan, .GreaterThan => {},
+            else => std.debug.assert(false),
+        }
+
+        const right_expr = try self.parseSingleExpression();
+        if (right_expr.isInfix()) {
+            // compare precedence
+            unreachable;
+        }
+
+        // regular
+        // TODO: Probably should allocate space for all expressions at once
+        const exprs = try self.arena.alloc(Expression, 2);
+        exprs[0] = left_expr;
+        exprs[1] = right_expr;
+
+        return switch (operation_token) {
+            .Plus => Expression{ .Add = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Minus => Expression{ .Subtract = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Asterisk => Expression{ .Multiply = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Slash => Expression{ .Divide = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Equals => Expression{ .Equals = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .NotEquals => Expression{ .NotEquals = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .LessThan => Expression{ .LessThan = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .GreaterThan => Expression{ .GreaterThan = .{ .left = &exprs[0], .right = &exprs[1] } },
+            else => unreachable, // should be infix operator
+        };
     }
 
     fn parseStatements(self: *Parser) Error![]Statement {
@@ -160,6 +202,8 @@ fn testParser(statements: []const Statement, expected_statements: []const Statem
             },
             .Expression => |expected_expression| {
                 const expression = statement.Expression;
+                print("{}\n", .{expression});
+                print("{}\n", .{expected_expression});
 
                 try expect(eqlExpressions(&expected_expression, &expression));
             },
@@ -226,6 +270,30 @@ test "return statement" {
 
     const statements = try parser.parseStatements();
     const expected_statements = [_]Statement{ Statement{ .Return = Expression{ .IntLiteral = 5 } }, Statement{ .Return = Expression{ .IntLiteral = 993322 } }, Statement{ .Return = Expression{ .Identifier = "foobar" } } };
+
+    try testParser(statements, &expected_statements);
+}
+
+test "infix precedence" {
+    var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_allocator.deinit();
+
+    const arena = arena_allocator.allocator();
+
+    const input =
+        \\5 + 10 / 2;
+    ;
+    const lexer = Lexer.new(input);
+    var parser = Parser.init(lexer, arena);
+
+    const statements = try parser.parseStatements();
+    var five = Expression{ .IntLiteral = 5 };
+    var ten = Expression{ .IntLiteral = 10 };
+    var two = Expression{ .IntLiteral = 2 };
+
+    var divided = Expression{ .Divide = .{ .left = &ten, .right = &two } };
+
+    const expected_statements = [_]Statement{Statement{ .Expression = Expression{ .Add = .{ .left = &five, .right = &divided } } }};
 
     try testParser(statements, &expected_statements);
 }
