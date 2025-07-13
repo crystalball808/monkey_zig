@@ -14,13 +14,21 @@ pub const Expression = union(enum) {
 
     // infix operator
     equals: InfixChildren,
+    equals_boosted: InfixChildren,
     not_equals: InfixChildren,
+    not_equals_boosted: InfixChildren,
     add: InfixChildren,
+    add_boosted: InfixChildren,
     subtract: InfixChildren,
+    subtract_boosted: InfixChildren,
     multiply: InfixChildren,
+    multiply_boosted: InfixChildren,
     divide: InfixChildren,
+    divide_boosted: InfixChildren,
     greater_than: InfixChildren,
+    greater_than_boosted: InfixChildren,
     less_than: InfixChildren,
+    less_than_boosted: InfixChildren,
 
     if_else: IfChildren,
     func: struct {
