@@ -61,16 +61,43 @@ const Parser = struct {
         return expr;
     }
     fn infixParse(self: *Parser, left_expr: Expression, left_boosted: bool) Error!Expression {
+        var mut_left_expr = left_expr;
         const operation_token = try self.lexer.next() orelse unreachable;
         switch (operation_token) {
             .Plus, .Minus, .Asterisk, .Slash, .Equals, .NotEquals, .LessThan, .GreaterThan => {},
             else => std.debug.assert(false),
         }
 
-        if (left_expr.isInfix() and left_boosted) {
+        if (left_expr.isInfix() and !left_boosted) {
             if (operation_token.getPrecedence() > left_expr.getPrecedence()) {
                 // manipulation
 
+                switch (mut_left_expr) {
+                    .add, .subtract, .multiply, .divide, .greater_than, .less_than, .equals, .not_equals => |*children| {
+                        const left = children.right;
+                        // TODO: Probably should allocate space for all expressions at once
+                        //
+                        const right = try self.arena.create(Expression);
+                        right.* = try self.parseSingleExpression();
+
+                        const new = try self.arena.create(Expression);
+                        new.* = switch (operation_token) {
+                            .Plus => Expression{ .add = .{ .left = left, .right = right } },
+                            .Minus => Expression{ .subtract = .{ .left = left, .right = right } },
+                            .Asterisk => Expression{ .multiply = .{ .left = left, .right = right } },
+                            .Slash => Expression{ .divide = .{ .left = left, .right = right } },
+                            .Equals => Expression{ .equals = .{ .left = left, .right = right } },
+                            .NotEquals => Expression{ .not_equals = .{ .left = left, .right = right } },
+                            .LessThan => Expression{ .less_than = .{ .left = left, .right = right } },
+                            .GreaterThan => Expression{ .greater_than = .{ .left = left, .right = right } },
+                            else => unreachable, // should be infix operator
+                        };
+
+                        children.right = new;
+                        return mut_left_expr;
+                    },
+                    else => unreachable,
+                }
             }
         }
 
