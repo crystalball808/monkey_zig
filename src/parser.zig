@@ -60,82 +60,35 @@ const Parser = struct {
 
         return expr;
     }
-    fn infixParse(self: *Parser, left_expr: Expression, boosted: bool) Error!Expression {
+    fn infixParse(self: *Parser, left_expr: Expression, left_boosted: bool) Error!Expression {
         const operation_token = try self.lexer.next() orelse unreachable;
         switch (operation_token) {
             .Plus, .Minus, .Asterisk, .Slash, .Equals, .NotEquals, .LessThan, .GreaterThan => {},
             else => std.debug.assert(false),
         }
 
-        const right_expr = try self.parseSingleExpression();
-        if (right_expr.isInfix()) {
-            // compare precedence
-            unreachable;
+        if (left_expr.isInfix() and left_boosted) {
+            if (operation_token.getPrecedence() > left_expr.getPrecedence()) {
+                // manipulation
+
+            }
         }
 
         // regular
         // TODO: Probably should allocate space for all expressions at once
         const exprs = try self.arena.alloc(Expression, 2);
         exprs[0] = left_expr;
-        exprs[1] = right_expr;
+        exprs[1] = try self.parseSingleExpression();
 
         return switch (operation_token) {
-            .Plus => {
-                if (boosted) {
-                    return Expression{ .add_boosted = .{ .left = &exprs[0], .right = &exprs[1] } };
-                } else {
-                    return Expression{ .add = .{ .left = &exprs[0], .right = &exprs[1] } };
-                }
-            },
-            .Minus => {
-                if (boosted) {
-                    return Expression{ .subtract_boosted = .{ .left = &exprs[0], .right = &exprs[1] } };
-                } else {
-                    return Expression{ .subtract = .{ .left = &exprs[0], .right = &exprs[1] } };
-                }
-            },
-            .Asterisk => {
-                if (boosted) {
-                    return Expression{ .multiply_boosted = .{ .left = &exprs[0], .right = &exprs[1] } };
-                } else {
-                    return Expression{ .multiply = .{ .left = &exprs[0], .right = &exprs[1] } };
-                }
-            },
-            .Slash => {
-                if (boosted) {
-                    return Expression{ .divide_boosted = .{ .left = &exprs[0], .right = &exprs[1] } };
-                } else {
-                    return Expression{ .divide = .{ .left = &exprs[0], .right = &exprs[1] } };
-                }
-            },
-            .Equals => {
-                if (boosted) {
-                    return Expression{ .equals_boosted = .{ .left = &exprs[0], .right = &exprs[1] } };
-                } else {
-                    return Expression{ .equals = .{ .left = &exprs[0], .right = &exprs[1] } };
-                }
-            },
-            .NotEquals => {
-                if (boosted) {
-                    return Expression{ .not_equals_boosted = .{ .left = &exprs[0], .right = &exprs[1] } };
-                } else {
-                    return Expression{ .not_equals = .{ .left = &exprs[0], .right = &exprs[1] } };
-                }
-            },
-            .LessThan => {
-                if (boosted) {
-                    return Expression{ .less_than_boosted = .{ .left = &exprs[0], .right = &exprs[1] } };
-                } else {
-                    return Expression{ .less_than = .{ .left = &exprs[0], .right = &exprs[1] } };
-                }
-            },
-            .GreaterThan => {
-                if (boosted) {
-                    return Expression{ .greater_than_boosted = .{ .left = &exprs[0], .right = &exprs[1] } };
-                } else {
-                    return Expression{ .greater_than = .{ .left = &exprs[0], .right = &exprs[1] } };
-                }
-            },
+            .Plus => Expression{ .add = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Minus => Expression{ .subtract = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Asterisk => Expression{ .multiply = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Slash => Expression{ .divide = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Equals => Expression{ .equals = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .NotEquals => Expression{ .not_equals = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .LessThan => Expression{ .less_than = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .GreaterThan => Expression{ .greater_than = .{ .left = &exprs[0], .right = &exprs[1] } },
             else => unreachable, // should be infix operator
         };
     }

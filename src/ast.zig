@@ -14,21 +14,13 @@ pub const Expression = union(enum) {
 
     // infix operator
     equals: InfixChildren,
-    equals_boosted: InfixChildren,
     not_equals: InfixChildren,
-    not_equals_boosted: InfixChildren,
     add: InfixChildren,
-    add_boosted: InfixChildren,
     subtract: InfixChildren,
-    subtract_boosted: InfixChildren,
     multiply: InfixChildren,
-    multiply_boosted: InfixChildren,
     divide: InfixChildren,
-    divide_boosted: InfixChildren,
     greater_than: InfixChildren,
-    greater_than_boosted: InfixChildren,
     less_than: InfixChildren,
-    less_than_boosted: InfixChildren,
 
     if_else: IfChildren,
     func: struct {
@@ -45,10 +37,11 @@ pub const Expression = union(enum) {
     }
     pub fn getPrecedence(self: *const Expression) u4 {
         return switch (self.*) {
-            .equals, .NotEquals => 0,
+            .equals, .not_equals => 0,
             .greater_than, .less_than => 1,
             .add, .subtract => 2,
             .multiply, .divide => 3,
+            else => unreachable,
         };
     }
 };

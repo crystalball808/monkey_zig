@@ -39,6 +39,15 @@ pub const Token = union(enum) {
     Return: void,
     If: void,
     Else: void,
+    pub fn getPrecedence(self: *const Token) u4 {
+        return switch (self.*) {
+            .Equals, .NotEquals => 0,
+            .GreaterThan, .LessThan => 1,
+            .Plus, .Minus => 2,
+            .Asterisk, .Slash => 3,
+            else => unreachable,
+        };
+    }
 };
 pub fn prettyPrint(token: *const Token) void {
     switch (token.*) {
