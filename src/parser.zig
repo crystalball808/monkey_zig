@@ -27,11 +27,11 @@ const Parser = struct {
 
     fn parseSingleExpression(self: *Parser) Error!Expression {
         switch (try self.lexer.next() orelse return Error.NoTokenToParse) {
-            Token.Int => |integer| return Expression{ .IntLiteral = integer },
-            Token.True => return Expression{ .Boolean = true },
-            Token.False => return Expression{ .Boolean = false },
-            Token.String => |string| return Expression{ .StringLiteral = string },
-            Token.Identifier => |ident| return Expression{ .Identifier = ident },
+            Token.Int => |integer| return Expression{ .int_literal = integer },
+            Token.True => return Expression{ .boolean = true },
+            Token.False => return Expression{ .boolean = false },
+            Token.String => |string| return Expression{ .string_literal = string },
+            Token.Identifier => |ident| return Expression{ .identifier = ident },
             else => unreachable,
         }
     }
@@ -61,7 +61,6 @@ const Parser = struct {
         return expr;
     }
     fn infixParse(self: *Parser, left_expr: Expression, boosted: bool) Error!Expression {
-        _ = boosted;
         const operation_token = try self.lexer.next() orelse unreachable;
         switch (operation_token) {
             .Plus, .Minus, .Asterisk, .Slash, .Equals, .NotEquals, .LessThan, .GreaterThan => {},
@@ -81,14 +80,14 @@ const Parser = struct {
         exprs[1] = right_expr;
 
         return switch (operation_token) {
-            .Plus => Expression{ .Add = .{ .left = &exprs[0], .right = &exprs[1] } },
-            .Minus => Expression{ .Subtract = .{ .left = &exprs[0], .right = &exprs[1] } },
-            .Asterisk => Expression{ .Multiply = .{ .left = &exprs[0], .right = &exprs[1] } },
-            .Slash => Expression{ .Divide = .{ .left = &exprs[0], .right = &exprs[1] } },
-            .Equals => Expression{ .Equals = .{ .left = &exprs[0], .right = &exprs[1] } },
-            .NotEquals => Expression{ .NotEquals = .{ .left = &exprs[0], .right = &exprs[1] } },
-            .LessThan => Expression{ .LessThan = .{ .left = &exprs[0], .right = &exprs[1] } },
-            .GreaterThan => Expression{ .GreaterThan = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Plus => Expression{ .add = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Minus => Expression{ .subtract = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Asterisk => Expression{ .multiply = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Slash => Expression{ .divide = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .Equals => Expression{ .equals = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .NotEquals => Expression{ .not_equals = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .LessThan => Expression{ .less_than = .{ .left = &exprs[0], .right = &exprs[1] } },
+            .GreaterThan => Expression{ .greater_than = .{ .left = &exprs[0], .right = &exprs[1] } },
             else => unreachable, // should be infix operator
         };
     }
@@ -174,10 +173,10 @@ fn eqlExpressions(a: *const Expression, b: *const Expression) bool {
         return false;
     }
     switch (a.*) {
-        Expression.IntLiteral => |integer| return (integer == b.*.IntLiteral),
-        Expression.Boolean => |value| return value == b.*.Boolean,
-        Expression.Identifier => |ident| return std.mem.eql(u8, ident, b.Identifier),
-        Expression.StringLiteral => |string| return std.mem.eql(u8, string, b.StringLiteral),
+        Expression.int_literal => |integer| return (integer == b.*.int_literal),
+        Expression.boolean => |value| return value == b.*.boolean,
+        Expression.identifier => |ident| return std.mem.eql(u8, ident, b.identifier),
+        Expression.string_literal => |string| return std.mem.eql(u8, string, b.string_literal),
         else => return true,
     }
 }
@@ -232,7 +231,7 @@ test "let statement" {
     var parser = Parser.init(lexer, arena);
 
     const statements = try parser.parseStatements();
-    const expected_statements = [_]Statement{ Statement{ .Let = .{ .name = "x", .expr = Expression{ .IntLiteral = 5 } } }, Statement{ .Let = .{ .name = "y", .expr = Expression{ .IntLiteral = 10 } } }, Statement{ .Let = .{ .name = "foobar", .expr = Expression{ .StringLiteral = "bazquaz" } } } };
+    const expected_statements = [_]Statement{ Statement{ .Let = .{ .name = "x", .expr = Expression{ .int_literal = 5 } } }, Statement{ .Let = .{ .name = "y", .expr = Expression{ .int_literal = 10 } } }, Statement{ .Let = .{ .name = "foobar", .expr = Expression{ .string_literal = "bazquaz" } } } };
 
     try testParser(statements, &expected_statements);
 }
@@ -250,7 +249,7 @@ test "expression statement" {
     var parser = Parser.init(lexer, arena);
 
     const statements = try parser.parseStatements();
-    const expected_statements = [_]Statement{ Statement{ .Expression = Expression{ .Identifier = "foobar" } }, Statement{ .Expression = Expression{ .IntLiteral = 5 } } };
+    const expected_statements = [_]Statement{ Statement{ .Expression = Expression{ .identifier = "foobar" } }, Statement{ .Expression = Expression{ .int_literal = 5 } } };
 
     try testParser(statements, &expected_statements);
 }
@@ -269,7 +268,7 @@ test "return statement" {
     var parser = Parser.init(lexer, arena);
 
     const statements = try parser.parseStatements();
-    const expected_statements = [_]Statement{ Statement{ .Return = Expression{ .IntLiteral = 5 } }, Statement{ .Return = Expression{ .IntLiteral = 993322 } }, Statement{ .Return = Expression{ .Identifier = "foobar" } } };
+    const expected_statements = [_]Statement{ Statement{ .Return = Expression{ .int_literal = 5 } }, Statement{ .Return = Expression{ .int_literal = 993322 } }, Statement{ .Return = Expression{ .identifier = "foobar" } } };
 
     try testParser(statements, &expected_statements);
 }
@@ -287,13 +286,13 @@ test "infix precedence" {
     var parser = Parser.init(lexer, arena);
 
     const statements = try parser.parseStatements();
-    var five = Expression{ .IntLiteral = 5 };
-    var ten = Expression{ .IntLiteral = 10 };
-    var two = Expression{ .IntLiteral = 2 };
+    var five = Expression{ .int_literal = 5 };
+    var ten = Expression{ .int_literal = 10 };
+    var two = Expression{ .int_literal = 2 };
 
-    var divided = Expression{ .Divide = .{ .left = &ten, .right = &two } };
+    var divided = Expression{ .divide = .{ .left = &ten, .right = &two } };
 
-    const expected_statements = [_]Statement{Statement{ .Expression = Expression{ .Add = .{ .left = &five, .right = &divided } } }};
+    const expected_statements = [_]Statement{Statement{ .Expression = Expression{ .add = .{ .left = &five, .right = &divided } } }};
 
     try testParser(statements, &expected_statements);
 }
