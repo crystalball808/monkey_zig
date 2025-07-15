@@ -70,13 +70,9 @@ const Parser = struct {
 
         if (left_expr.isInfix() and !left_boosted) {
             if (operation_token.getPrecedence() > left_expr.getPrecedence()) {
-                // manipulation
-
                 switch (mut_left_expr) {
                     .add, .subtract, .multiply, .divide, .greater_than, .less_than, .equals, .not_equals => |*children| {
                         const left = children.right;
-                        // TODO: Probably should allocate space for all expressions at once
-                        //
                         const right = try self.arena.create(Expression);
                         right.* = try self.parseSingleExpression();
 
@@ -101,8 +97,6 @@ const Parser = struct {
             }
         }
 
-        // regular
-        // TODO: Probably should allocate space for all expressions at once
         const exprs = try self.arena.alloc(Expression, 2);
         exprs[0] = left_expr;
         exprs[1] = try self.parseSingleExpression();
