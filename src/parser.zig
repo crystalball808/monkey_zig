@@ -172,7 +172,7 @@ const Parser = struct {
 
                     const expr = try self.parseExpression();
 
-                    const statement = Statement{ .Let = .{ .expr = expr, .name = ident } };
+                    const statement = Statement{ .let = .{ .expr = expr, .name = ident } };
                     try statements.append(statement);
 
                     if (try self.lexer.peek()) |peeked_token| {
@@ -188,7 +188,7 @@ const Parser = struct {
                 .Return => {
                     _ = try self.lexer.next();
                     const expr = try self.parseExpression();
-                    const statement = Statement{ .Return = expr };
+                    const statement = Statement{ .@"return" = expr };
                     try statements.append(statement);
                     if (try self.lexer.next()) |tok| {
                         switch (tok) {
@@ -205,7 +205,7 @@ const Parser = struct {
                 },
                 else => {
                     const expr = try self.parseExpression();
-                    try statements.append(Statement{ .Expression = expr });
+                    try statements.append(Statement{ .expression = expr });
 
                     if (try self.lexer.peek()) |peeked_token| {
                         switch (peeked_token) {
@@ -247,7 +247,7 @@ fn testParser(statements: []const Statement, expected_statements: []const Statem
 
         switch (expected_statement) {
             .Let => |expected_let_statement| {
-                const let_statement = statement.Let;
+                const let_statement = statement.let;
 
                 // compare identifier
                 try expect(std.mem.eql(u8, expected_let_statement.name, let_statement.name));
@@ -256,13 +256,12 @@ fn testParser(statements: []const Statement, expected_statements: []const Statem
                 try expect(eqlExpressions(&expected_let_statement.expr, &let_statement.expr));
             },
             .Expression => |expected_expression| {
-                const expression = statement.Expression;
+                const expression = statement.expression;
 
                 try expect(eqlExpressions(&expected_expression, &expression));
             },
-            // TODO: Cover all statements
             .Return => |expected_expression| {
-                const expression = statement.Return;
+                const expression = statement.@"return";
 
                 try expect(eqlExpressions(&expected_expression, &expression));
             },
@@ -285,7 +284,7 @@ test "let statement" {
     var parser = Parser.init(lexer, arena);
 
     const statements = try parser.parseStatements();
-    const expected_statements = [_]Statement{ Statement{ .Let = .{ .name = "x", .expr = Expression{ .int_literal = 5 } } }, Statement{ .Let = .{ .name = "y", .expr = Expression{ .int_literal = 10 } } }, Statement{ .Let = .{ .name = "foobar", .expr = Expression{ .string_literal = "bazquaz" } } } };
+    const expected_statements = [_]Statement{ Statement{ .let = .{ .name = "x", .expr = Expression{ .int_literal = 5 } } }, Statement{ .let = .{ .name = "y", .expr = Expression{ .int_literal = 10 } } }, Statement{ .let = .{ .name = "foobar", .expr = Expression{ .string_literal = "bazquaz" } } } };
 
     try testParser(statements, &expected_statements);
 }
@@ -303,7 +302,7 @@ test "expression statement" {
     var parser = Parser.init(lexer, arena);
 
     const statements = try parser.parseStatements();
-    const expected_statements = [_]Statement{ Statement{ .Expression = Expression{ .identifier = "foobar" } }, Statement{ .Expression = Expression{ .int_literal = 5 } } };
+    const expected_statements = [_]Statement{ Statement{ .expression = Expression{ .identifier = "foobar" } }, Statement{ .expression = Expression{ .int_literal = 5 } } };
 
     try testParser(statements, &expected_statements);
 }
@@ -322,7 +321,7 @@ test "return statement" {
     var parser = Parser.init(lexer, arena);
 
     const statements = try parser.parseStatements();
-    const expected_statements = [_]Statement{ Statement{ .Return = Expression{ .int_literal = 5 } }, Statement{ .Return = Expression{ .int_literal = 993322 } }, Statement{ .Return = Expression{ .identifier = "foobar" } } };
+    const expected_statements = [_]Statement{ Statement{ .@"return" = Expression{ .int_literal = 5 } }, Statement{ .@"return" = Expression{ .int_literal = 993322 } }, Statement{ .@"return" = Expression{ .identifier = "foobar" } } };
 
     try testParser(statements, &expected_statements);
 }
@@ -346,7 +345,7 @@ test "infix precedence" {
 
     var divided = Expression{ .divide = .{ .left = &ten, .right = &two } };
 
-    const expected_statements = [_]Statement{Statement{ .Expression = Expression{ .add = .{ .left = &five, .right = &divided } } }};
+    const expected_statements = [_]Statement{Statement{ .expression = Expression{ .add = .{ .left = &five, .right = &divided } } }};
 
     try testParser(statements, &expected_statements);
 }
@@ -366,7 +365,7 @@ test "prefix expression" {
 
     const statements = try parser.parseStatements();
 
-    const expected_statements = [_]Statement{ Statement{ .Expression = Expression{ .negative = &Expression{ .identifier = "foobar" } } }, Statement{ .Expression = Expression{ .not = &Expression{ .int_literal = 10 } } }, Statement{ .Expression = Expression{ .not = &Expression{ .identifier = "x" } } } };
+    const expected_statements = [_]Statement{ Statement{ .expression = Expression{ .negative = &Expression{ .identifier = "foobar" } } }, Statement{ .expression = Expression{ .not = &Expression{ .int_literal = 10 } } }, Statement{ .expression = Expression{ .not = &Expression{ .identifier = "x" } } } };
 
     try testParser(statements, &expected_statements);
 }
@@ -384,7 +383,7 @@ test "grouped" {
 
     const statements = try parser.parseStatements();
 
-    const expected_statements = [_]Statement{Statement{ .Expression = Expression{ .divide = .{ .left = &Expression{ .add = .{ .left = &Expression{ .int_literal = 5 }, .right = &Expression{ .int_literal = 10 } } }, .right = &Expression{ .int_literal = 2 } } } }};
+    const expected_statements = [_]Statement{Statement{ .expression = Expression{ .divide = .{ .left = &Expression{ .add = .{ .left = &Expression{ .int_literal = 5 }, .right = &Expression{ .int_literal = 10 } } }, .right = &Expression{ .int_literal = 2 } } } }};
 
     try testParser(statements, &expected_statements);
 }

@@ -46,4 +46,4 @@ pub const Expression = union(enum) {
     }
 };
 
-pub const Statement = union(enum) { Expression: Expression, Return: Expression, Let: struct { name: []const u8, expr: Expression } };
+pub const Statement = union(enum) { expression: Expression, @"return": Expression, let: struct { name: []const u8, expr: Expression } };
