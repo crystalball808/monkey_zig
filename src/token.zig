@@ -39,6 +39,13 @@ pub const Token = union(enum) {
     Return: void,
     If: void,
     Else: void,
+
+    pub fn isInfixOperator(self: *const Token) bool {
+        return switch (self.*) {
+            .Equals, .NotEquals, .GreaterThan, .LessThan, .Plus, .Minus, .Asterisk, .Slash => true,
+            else => false,
+        };
+    }
     pub fn getPrecedence(self: *const Token) u4 {
         return switch (self.*) {
             .Equals, .NotEquals => 0,

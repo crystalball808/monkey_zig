@@ -14,15 +14,16 @@ const Token = token_mod.Token;
 
 const StatementList = std.ArrayList(Statement);
 
-const Error = error{ UnfinishedStatement, NoTokenToParse, ExpectedSemicolon } || LexerError || Allocator.Error;
+const Error = error{ UnfinishedStatement, NoTokenToParse, ExpectedSemicolon, UnfinishedGroupedExpression } || LexerError || Allocator.Error;
 
 const ParseState = enum { start, infix, index };
 const Parser = struct {
     lexer: Lexer,
     arena: Allocator,
+    last_expr_boosted: bool,
 
     fn init(lexer: Lexer, arena: Allocator) Parser {
-        return Parser{ .lexer = lexer, .arena = arena };
+        return Parser{ .lexer = lexer, .arena = arena, .last_expr_boosted = false };
     }
 
     fn parseSingleExpression(self: *Parser) Error!Expression {
@@ -44,6 +45,24 @@ const Parser = struct {
 
                 return Expression{ .not = expr };
             },
+            Token.LParen => {
+                var expr = try self.parseSingleExpression();
+                while (try self.lexer.peek()) |peeked_token| {
+                    if (peeked_token.isInfixOperator()) {
+                        expr = try self.infixParse(expr);
+                    } else {
+                        break;
+                    }
+                }
+
+                const next_token = try self.lexer.next() orelse return Error.UnfinishedGroupedExpression;
+                if (next_token != Token.RParen) {
+                    return Error.UnfinishedGroupedExpression;
+                }
+
+                self.last_expr_boosted = true;
+                return expr;
+            },
             else => unreachable,
         }
     }
@@ -62,7 +81,7 @@ const Parser = struct {
                 .LessThan,
                 .GreaterThan,
                 => {
-                    expr = try self.infixParse(expr, false);
+                    expr = try self.infixParse(expr);
                 },
                 // index expression
                 .LBracket => unreachable,
@@ -72,7 +91,10 @@ const Parser = struct {
 
         return expr;
     }
-    fn infixParse(self: *Parser, left_expr: Expression, left_boosted: bool) Error!Expression {
+    fn infixParse(self: *Parser, left_expr: Expression) Error!Expression {
+        defer if (self.last_expr_boosted) {
+            self.last_expr_boosted = false;
+        };
         var mut_left_expr = left_expr;
         const operation_token = try self.lexer.next() orelse unreachable;
         switch (operation_token) {
@@ -80,7 +102,7 @@ const Parser = struct {
             else => std.debug.assert(false),
         }
 
-        if (left_expr.isInfix() and !left_boosted) {
+        if (left_expr.isInfix() and !self.last_expr_boosted) {
             if (operation_token.getPrecedence() > left_expr.getPrecedence()) {
                 switch (mut_left_expr) {
                     .add, .subtract, .multiply, .divide, .greater_than, .less_than, .equals, .not_equals => |*children| {
@@ -345,6 +367,24 @@ test "prefix expression" {
     const statements = try parser.parseStatements();
 
     const expected_statements = [_]Statement{ Statement{ .Expression = Expression{ .negative = &Expression{ .identifier = "foobar" } } }, Statement{ .Expression = Expression{ .not = &Expression{ .int_literal = 10 } } }, Statement{ .Expression = Expression{ .not = &Expression{ .identifier = "x" } } } };
+
+    try testParser(statements, &expected_statements);
+}
+test "grouped" {
+    var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_allocator.deinit();
+
+    const arena = arena_allocator.allocator();
+
+    const input =
+        \\(5 + 10) / 2;
+    ;
+    const lexer = Lexer.new(input);
+    var parser = Parser.init(lexer, arena);
+
+    const statements = try parser.parseStatements();
+
+    const expected_statements = [_]Statement{Statement{ .Expression = Expression{ .divide = .{ .left = &Expression{ .add = .{ .left = &Expression{ .int_literal = 5 }, .right = &Expression{ .int_literal = 10 } } }, .right = &Expression{ .int_literal = 2 } } } }};
 
     try testParser(statements, &expected_statements);
 }
