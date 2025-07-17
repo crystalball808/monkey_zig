@@ -32,6 +32,18 @@ const Parser = struct {
             Token.False => return Expression{ .boolean = false },
             Token.String => |string| return Expression{ .string_literal = string },
             Token.Identifier => |ident| return Expression{ .identifier = ident },
+            Token.Minus => {
+                const expr = try self.arena.create(Expression);
+                expr.* = try self.parseExpression();
+
+                return Expression{ .negative = expr };
+            },
+            Token.Bang => {
+                const expr = try self.arena.create(Expression);
+                expr.* = try self.parseExpression();
+
+                return Expression{ .not = expr };
+            },
             else => unreachable,
         }
     }
@@ -223,8 +235,6 @@ fn testParser(statements: []const Statement, expected_statements: []const Statem
             },
             .Expression => |expected_expression| {
                 const expression = statement.Expression;
-                print("{}\n", .{expression});
-                print("{}\n", .{expected_expression});
 
                 try expect(eqlExpressions(&expected_expression, &expression));
             },
@@ -315,6 +325,26 @@ test "infix precedence" {
     var divided = Expression{ .divide = .{ .left = &ten, .right = &two } };
 
     const expected_statements = [_]Statement{Statement{ .Expression = Expression{ .add = .{ .left = &five, .right = &divided } } }};
+
+    try testParser(statements, &expected_statements);
+}
+test "prefix expression" {
+    var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_allocator.deinit();
+
+    const arena = arena_allocator.allocator();
+
+    const input =
+        \\-foobar;
+        \\!10;
+        \\!x;
+    ;
+    const lexer = Lexer.new(input);
+    var parser = Parser.init(lexer, arena);
+
+    const statements = try parser.parseStatements();
+
+    const expected_statements = [_]Statement{ Statement{ .Expression = Expression{ .negative = &Expression{ .identifier = "foobar" } } }, Statement{ .Expression = Expression{ .not = &Expression{ .int_literal = 10 } } }, Statement{ .Expression = Expression{ .not = &Expression{ .identifier = "x" } } } };
 
     try testParser(statements, &expected_statements);
 }

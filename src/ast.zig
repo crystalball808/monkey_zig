@@ -1,7 +1,7 @@
 pub const ExpressionType = enum { int_literal, boolean, string_literal, identifier, not, negative, equals, not_equals, add, subtract, multiply, divide, greater_than, less_than, if_else, func, call };
 pub const Expression = union(enum) {
-    const InfixChildren = struct { left: *Expression, right: *Expression };
-    const IfChildren = struct { condition: *Expression, then: *Expression, alternative: ?*Expression };
+    const InfixChildren = struct { left: *const Expression, right: *const Expression };
+    const IfChildren = struct { condition: *const Expression, then: *const Expression, alternative: ?*const Expression };
 
     int_literal: i32,
     boolean: bool,
@@ -9,8 +9,8 @@ pub const Expression = union(enum) {
     identifier: []const u8,
 
     //  prefix operator
-    not: *Expression, // index of another expression
-    negative: *Expression, // index of another expression
+    not: *const Expression, // index of another expression
+    negative: *const Expression, // index of another expression
 
     // infix operator
     equals: InfixChildren,
