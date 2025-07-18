@@ -246,7 +246,7 @@ fn testParser(statements: []const Statement, expected_statements: []const Statem
         try expect(std.meta.activeTag(expected_statement) == std.meta.activeTag(statement));
 
         switch (expected_statement) {
-            .Let => |expected_let_statement| {
+            .let => |expected_let_statement| {
                 const let_statement = statement.let;
 
                 // compare identifier
@@ -255,12 +255,12 @@ fn testParser(statements: []const Statement, expected_statements: []const Statem
                 // compare expression
                 try expect(eqlExpressions(&expected_let_statement.expr, &let_statement.expr));
             },
-            .Expression => |expected_expression| {
+            .expression => |expected_expression| {
                 const expression = statement.expression;
 
                 try expect(eqlExpressions(&expected_expression, &expression));
             },
-            .Return => |expected_expression| {
+            .@"return" => |expected_expression| {
                 const expression = statement.@"return";
 
                 try expect(eqlExpressions(&expected_expression, &expression));
@@ -269,76 +269,54 @@ fn testParser(statements: []const Statement, expected_statements: []const Statem
     }
 }
 
-test "let statement" {
+fn setupTest(input: []const u8, expected_statements: []const Statement) !void {
     var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_allocator.deinit();
 
     const arena = arena_allocator.allocator();
 
+    const lexer = Lexer.new(input);
+    var parser = Parser.init(lexer, arena);
+
+    const statements = try parser.parseStatements();
+    try testParser(statements, expected_statements);
+}
+
+test "let statement" {
     const input =
         \\let x = 5;
         \\let y = 10;
         \\let foobar = "bazquaz";
     ;
-    const lexer = Lexer.new(input);
-    var parser = Parser.init(lexer, arena);
-
-    const statements = try parser.parseStatements();
     const expected_statements = [_]Statement{ Statement{ .let = .{ .name = "x", .expr = Expression{ .int_literal = 5 } } }, Statement{ .let = .{ .name = "y", .expr = Expression{ .int_literal = 10 } } }, Statement{ .let = .{ .name = "foobar", .expr = Expression{ .string_literal = "bazquaz" } } } };
 
-    try testParser(statements, &expected_statements);
+    try setupTest(input, &expected_statements);
 }
 test "expression statement" {
-    var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena_allocator.deinit();
-
-    const arena = arena_allocator.allocator();
     const input =
         \\foobar;
         \\5;
     ;
-
-    const lexer = Lexer.new(input);
-    var parser = Parser.init(lexer, arena);
-
-    const statements = try parser.parseStatements();
     const expected_statements = [_]Statement{ Statement{ .expression = Expression{ .identifier = "foobar" } }, Statement{ .expression = Expression{ .int_literal = 5 } } };
 
-    try testParser(statements, &expected_statements);
+    try setupTest(input, &expected_statements);
 }
 test "return statement" {
-    var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena_allocator.deinit();
-
-    const arena = arena_allocator.allocator();
     const input =
         \\return 5;
         \\return 993322;
         \\return foobar;
     ;
-
-    const lexer = Lexer.new(input);
-    var parser = Parser.init(lexer, arena);
-
-    const statements = try parser.parseStatements();
     const expected_statements = [_]Statement{ Statement{ .@"return" = Expression{ .int_literal = 5 } }, Statement{ .@"return" = Expression{ .int_literal = 993322 } }, Statement{ .@"return" = Expression{ .identifier = "foobar" } } };
 
-    try testParser(statements, &expected_statements);
+    try setupTest(input, &expected_statements);
 }
 
 test "infix precedence" {
-    var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena_allocator.deinit();
-
-    const arena = arena_allocator.allocator();
-
     const input =
         \\5 + 10 / 2;
     ;
-    const lexer = Lexer.new(input);
-    var parser = Parser.init(lexer, arena);
 
-    const statements = try parser.parseStatements();
     var five = Expression{ .int_literal = 5 };
     var ten = Expression{ .int_literal = 10 };
     var two = Expression{ .int_literal = 2 };
@@ -347,43 +325,24 @@ test "infix precedence" {
 
     const expected_statements = [_]Statement{Statement{ .expression = Expression{ .add = .{ .left = &five, .right = &divided } } }};
 
-    try testParser(statements, &expected_statements);
+    try setupTest(input, &expected_statements);
 }
 test "prefix expression" {
-    var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena_allocator.deinit();
-
-    const arena = arena_allocator.allocator();
-
     const input =
         \\-foobar;
         \\!10;
         \\!x;
     ;
-    const lexer = Lexer.new(input);
-    var parser = Parser.init(lexer, arena);
-
-    const statements = try parser.parseStatements();
-
     const expected_statements = [_]Statement{ Statement{ .expression = Expression{ .negative = &Expression{ .identifier = "foobar" } } }, Statement{ .expression = Expression{ .not = &Expression{ .int_literal = 10 } } }, Statement{ .expression = Expression{ .not = &Expression{ .identifier = "x" } } } };
 
-    try testParser(statements, &expected_statements);
+    try setupTest(input, &expected_statements);
 }
 test "grouped" {
-    var arena_allocator = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena_allocator.deinit();
-
-    const arena = arena_allocator.allocator();
-
     const input =
         \\(5 + 10) / 2;
     ;
-    const lexer = Lexer.new(input);
-    var parser = Parser.init(lexer, arena);
-
-    const statements = try parser.parseStatements();
 
     const expected_statements = [_]Statement{Statement{ .expression = Expression{ .divide = .{ .left = &Expression{ .add = .{ .left = &Expression{ .int_literal = 5 }, .right = &Expression{ .int_literal = 10 } } }, .right = &Expression{ .int_literal = 2 } } } }};
 
-    try testParser(statements, &expected_statements);
+    try setupTest(input, &expected_statements);
 }
