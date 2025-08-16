@@ -1,44 +1,44 @@
 const debug = @import("std").debug;
 
 pub const Token = union(enum) {
-    Illegal: void,
-    EOF: void,
+    Illegal,
+    EOF,
     // Identifiers + literals
     Identifier: []const u8,
     Int: i32,
     String: []const u8,
-    True: void,
-    False: void,
+    True,
+    False,
 
     // Operators
-    Assign: void,
-    Plus: void,
-    Minus: void,
-    Equals: void,
-    NotEquals: void,
-    Bang: void,
-    Asterisk: void,
-    Slash: void,
-    GreaterThan: void,
-    LessThan: void,
+    Assign,
+    Plus,
+    Minus,
+    Equals,
+    NotEquals,
+    Bang,
+    Asterisk,
+    Slash,
+    GreaterThan,
+    LessThan,
 
     // Delimiters
-    Comma: void,
-    Semicolon: void,
+    Comma,
+    Semicolon,
 
-    LParen: void,
-    RParen: void,
-    LBrace: void,
-    RBrace: void,
-    LBracket: void,
-    RBracket: void,
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    LBracket,
+    RBracket,
 
     // Keywords
-    Function: void,
-    Let: void,
-    Return: void,
-    If: void,
-    Else: void,
+    Function,
+    Let,
+    Return,
+    If,
+    Else,
 
     pub fn isInfixOperator(self: *const Token) bool {
         return switch (self.*) {
